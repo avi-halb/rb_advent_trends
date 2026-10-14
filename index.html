@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Advent Calendar Search Trends</title>
+<link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; font-family: Lato, Arial, sans-serif; background: #f2f2f2; color: #212121; }
+  header { background: #1e6c93; color: #fff; padding: 24px 16px; text-align: center; }
+  header h1 { margin: 0; font-size: 22px; font-weight: 400; }
+  .y2026 { color: #ffff00; font-weight: 700; }
+  .y2025 { color: #8ab4ff; font-weight: 700; }
+  .y2024 { color: #ff6b6b; font-weight: 700; }
+  main { max-width: 1000px; margin: 0 auto; padding: 16px; }
+  .card { background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.15); margin: 0 0 24px; padding: 16px; }
+  .card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .card-head h2 { margin: 0; font-size: 18px; font-weight: 400; color: #226e93; }
+  .actions { display: flex; gap: 8px; }
+  .btn { background: #1e6c93; color: #fff; border: 0; border-radius: 4px; padding: 6px 12px;
+         font: inherit; font-size: 14px; cursor: pointer; text-decoration: none; }
+  .btn.secondary { background: #fff; color: #1e6c93; border: 1px solid #1e6c93; }
+  .widget { min-height: 420px; }
+  .widget .placeholder { padding: 40px; text-align: center; color: #888; }
+</style>
+<!-- Google Trends embed loader (same version as the Google Sites embed) -->
+<script src="https://ssl.gstatic.com/trends_nrtr/4564_RC01/embed_loader.js"></script>
+</head>
+<body>
+<header>
+  <h1>Advent Calendar Search Trends
+    (<span class="y2026">2026</span> vs <span class="y2025">2025</span> vs <span class="y2024">2024</span>)</h1>
+</header>
+<main id="charts"></main>
+
+<script>
+  // One entry per chart. Order of `items` = series colour order in Trends
+  // (1st blue, 2nd red, 3rd yellow), so keep 2025, 2024, 2026 to match the header.
+  var YEARS = [
+    { time: "2025-01-01 2025-12-31" },
+    { time: "2024-01-01 2024-12-31" },
+    { time: "2026-01-01 2026-12-31" }
+  ];
+  var GEO = "GB";
+
+  var CHARTS = [
+    // Note: original page compared the *topic* /m/034yc3 for 2025/2024 with the
+    // plain search term "Advent Calendar" for 2026. Kept as-is; change the third
+    // keyword to "/m/034yc3" if you want a like-for-like comparison.
+    { title: "Advent Calendar",            keywords: ["/m/034yc3", "/m/034yc3", "Advent Calendar"] },
+    { title: "Beauty Advent Calendar",     keywords: ["beauty advent calendar", "beauty advent calendar", "beauty advent calendar"] },
+    { title: "Makeup Advent Calendar",     keywords: ["makeup advent calendar", "makeup advent calendar", "makeup advent calendar"] },
+    { title: "Revolution Advent Calendar", keywords: ["Revolution Advent Calendar", "Revolution Advent Calendar", "Revolution Advent Calendar"] }
+  ];
+
+  // Delay between chart loads. Firing all requests at once is the usual cause of
+  // Trends' "failed to connect" (it rate-limits bursts), so load them one by one.
+  var STAGGER_MS = 2000;
+
+  function buildRequest(chart) {
+    var comparisonItem = chart.keywords.map(function (kw, i) {
+      return { keyword: kw, geo: GEO, time: YEARS[i].time };
+    });
+    var exploreQuery =
+      "date=" + YEARS.map(function (y) { return y.time; }).join(",") +
+      "&geo=" + chart.keywords.map(function () { return GEO; }).join(",") +
+      "&q=" + chart.keywords.map(encodeURIComponent).join(",") +
+      "&hl=en-GB";
+    return {
+      request: { comparisonItem: comparisonItem, category: 0, property: "" },
+      options: { exploreQuery: exploreQuery, guestPath: "https://trends.google.com:443/trends/embed/" },
+      exploreUrl: "https://trends.google.com/trends/explore?" + exploreQuery.replace(/ /g, "%20")
+    };
+  }
+
+  function render(chart) {
+    var cfg = buildRequest(chart);
+    chart.el.innerHTML = "";
+    trends.embed.renderExploreWidgetTo(chart.el, "TIMESERIES", cfg.request, cfg.options);
+  }
+
+  // Build the cards
+  var main = document.getElementById("charts");
+  CHARTS.forEach(function (chart) {
+    var cfg = buildRequest(chart);
+    var card = document.createElement("section");
+    card.className = "card";
+    card.innerHTML =
+      '<div class="card-head"><h2></h2><div class="actions">' +
+      '<button class="btn secondary" type="button">Reload chart</button>' +
+      '<a class="btn" target="_blank" rel="noopener">Open in Trends</a></div></div>' +
+      '<div class="widget"><div class="placeholder">Loading…</div></div>';
+    card.querySelector("h2").textContent = chart.title;
+    card.querySelector("a").href = cfg.exploreUrl;
+    chart.el = card.querySelector(".widget");
+    card.querySelector("button").addEventListener("click", function () { render(chart); });
+    main.appendChild(card);
+  });
+
+  // Load charts one at a time
+  CHARTS.forEach(function (chart, i) {
+    setTimeout(function () { render(chart); }, i * STAGGER_MS);
+  });
+</script>
+</body>
+</html>
