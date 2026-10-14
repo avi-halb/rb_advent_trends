@@ -47,7 +47,7 @@
     // Note: original page compared the *topic* /m/034yc3 for 2025/2024 with the
     // plain search term "Advent Calendar" for 2026. Kept as-is; change the third
     // keyword to "/m/034yc3" if you want a like-for-like comparison.
-    { title: "Advent Calendar",            keywords: ["/m/034yc3", "/m/034yc3", "/m/034yc3"] },
+    { title: "Advent Calendar",            keywords: ["/m/034yc3", "/m/034yc3", "/m/034yc3",] },
     { title: "Beauty Advent Calendar",     keywords: ["beauty advent calendar", "beauty advent calendar", "beauty advent calendar"] },
     { title: "Makeup Advent Calendar",     keywords: ["makeup advent calendar", "makeup advent calendar", "makeup advent calendar"] },
     { title: "Revolution Advent Calendar", keywords: ["Revolution Advent Calendar", "Revolution Advent Calendar", "Revolution Advent Calendar"] }
@@ -55,7 +55,7 @@
 
   // Delay between chart loads. Firing all requests at once is the usual cause of
   // Trends' "failed to connect" (it rate-limits bursts), so load them one by one.
-  var STAGGER_MS = 2000;
+  var STAGGER_MS = 3000;
 
   function buildRequest(chart) {
     var comparisonItem = chart.keywords.map(function (kw, i) {
@@ -97,10 +97,34 @@
     main.appendChild(card);
   });
 
-  // Load charts one at a time
-  CHARTS.forEach(function (chart, i) {
-    setTimeout(function () { render(chart); }, i * STAGGER_MS);
-  });
+  // Load charts only as they scroll into view, one at a time, STAGGER_MS apart,
+  // so opening the page sends one or two requests instead of all four.
+  var queue = [], busy = false;
+  function pump() {
+    if (busy || !queue.length) return;
+    busy = true;
+    render(queue.shift());
+    setTimeout(function () { busy = false; pump(); }, STAGGER_MS);
+  }
+  function enqueue(chart) {
+    if (chart.queued) return;
+    chart.queued = true;
+    queue.push(chart);
+    pump();
+  }
+
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        io.unobserve(entry.target);
+        CHARTS.forEach(function (c) { if (c.el === entry.target) enqueue(c); });
+      });
+    }, { rootMargin: "200px 0px" });
+    CHARTS.forEach(function (chart) { io.observe(chart.el); });
+  } else {
+    CHARTS.forEach(enqueue);
+  }
 </script>
 </body>
 </html>
